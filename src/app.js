@@ -36,12 +36,16 @@ const nextBtn = document.getElementById('next-btn');
 const zoomInBtn = document.getElementById('zoom-in-btn');
 const zoomOutBtn = document.getElementById('zoom-out-btn');
 
+const appEl = document.querySelector('.app');
+const presentationBtn = document.getElementById('presentation-btn');
+const toggleCameraBtn = document.getElementById('toggle-camera-btn');
+
 let handLandmarker = null;
 let gestureModel = null;
 
 let pdfDoc = null;
 let currentPage = 1;
-let scale = 1.2;
+let zoomFactor = 1;
 let rendering = false;
 let pendingPage = null;
 
@@ -74,16 +78,34 @@ async function renderPage(pageNumber) {
   }
 
   rendering = true;
+
   const page = await pdfDoc.getPage(pageNumber);
-  const viewport = page.getViewport({ scale });
+  const pdfWrapper = document.querySelector('.pdf-wrapper');
+
+  const baseViewport = page.getViewport({ scale: 1 });
+
+  const availableWidth = Math.max(320, pdfWrapper.clientWidth - 16);
+  const availableHeight = Math.max(240, pdfWrapper.clientHeight - 16);
+
+  const fitScale = Math.min(
+    availableWidth / baseViewport.width,
+    availableHeight / baseViewport.height
+  );
+
+  const finalScale = fitScale * zoomFactor;
+  const viewport = page.getViewport({ scale: finalScale });
 
   const outputScale = window.devicePixelRatio || 1;
+
   pdfCanvas.width = Math.floor(viewport.width * outputScale);
   pdfCanvas.height = Math.floor(viewport.height * outputScale);
+
   pdfCanvas.style.width = `${Math.floor(viewport.width)}px`;
   pdfCanvas.style.height = `${Math.floor(viewport.height)}px`;
 
-  const transform = outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null;
+  const transform = outputScale !== 1
+    ? [outputScale, 0, 0, outputScale, 0, 0]
+    : null;
 
   await page.render({
     canvasContext: pdfCtx,
@@ -114,12 +136,12 @@ async function prevPage() {
 }
 
 async function zoomIn() {
-  scale = Math.min(scale + 0.2, 3.0);
+  zoomFactor = Math.min(zoomFactor + 0.1, 2);
   await renderPage(currentPage);
 }
 
 async function zoomOut() {
-  scale = Math.max(scale - 0.2, 0.5);
+  zoomFactor = Math.max(zoomFactor - 0.1, 0.5);
   await renderPage(currentPage);
 }
 
@@ -137,18 +159,18 @@ async function executeGesture(gesture) {
   if (now - lastActionAt < ACTION_COOLDOWN_MS) return;
 
   if (gesture === 'two_up') {
-    await nextPage();
-    lastActionEl.textContent = 'Siguiente página';
-  } else if (gesture === 'fist') {
-    await prevPage();
-    lastActionEl.textContent = 'Página anterior';
-  } else if (gesture === 'like') {
-    await zoomIn();
-    lastActionEl.textContent = 'Zoom +';
-  } else if (gesture === 'call') {
-    toggleFullscreen();
-    lastActionEl.textContent = 'Pantalla completa';
-  }
+  await nextPage();
+  lastActionEl.textContent = 'Siguiente página';
+} else if (gesture === 'fist') {
+  await prevPage();
+  lastActionEl.textContent = 'Página anterior';
+} else if (gesture === 'like') {
+  await toggleCameraPanel();
+  lastActionEl.textContent = 'Mostrar/Ocultar cámara';
+} else if (gesture === 'call') {
+  await togglePresentationMode();
+  lastActionEl.textContent = 'Modo presentación';
+}
 
   lastActionAt = now;
 }
@@ -420,9 +442,49 @@ pdfInput.addEventListener('change', async (event) => {
   }
 });
 
+async function togglePresentationMode() {
+  appEl.classList.toggle('presentation-mode');
+  appEl.classList.remove('show-camera');
+
+  await new Promise((resolve) => setTimeout(resolve, 80));
+  await renderPage(currentPage);
+}
+
+async function toggleCameraPanel() {
+  appEl.classList.toggle('show-camera');
+
+  if (appEl.classList.contains('show-camera')) {
+    toggleCameraBtn.textContent = 'Ocultar cámara';
+  } else {
+    toggleCameraBtn.textContent = 'Mostrar cámara';
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, 80));
+  await renderPage(currentPage);
+}
+
 prevBtn.addEventListener('click', prevPage);
 nextBtn.addEventListener('click', nextPage);
 zoomInBtn.addEventListener('click', zoomIn);
 zoomOutBtn.addEventListener('click', zoomOut);
+presentationBtn.addEventListener('click', togglePresentationMode);
+toggleCameraBtn.addEventListener('click', toggleCameraPanel);
 
+window.addEventListener('resize', () => {
+  if (pdfDoc) {
+    renderPage(currentPage);
+  }
+});
+
+document.addEventListener('keydown', async (event) => {
+  const key = event.key.toLowerCase();
+
+  if (key === 'p') {
+    await togglePresentationMode();
+  }
+
+  if (key === 'c') {
+    await toggleCameraPanel();
+  }
+});
 init();

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>WaveSlide - Control PDF con gestos</title>
   </head>
+
   <body>
     <main class="app">
       <section class="viewer-panel">
@@ -19,10 +20,15 @@
               Cargar PDF
               <input id="pdf-input" type="file" accept="application/pdf" />
             </label>
+
             <button id="prev-btn">Atrás</button>
             <button id="next-btn">Siguiente</button>
             <button id="zoom-out-btn">Zoom -</button>
             <button id="zoom-in-btn">Zoom +</button>
+
+            <!-- Nuevos botones -->
+            <button id="presentation-btn">Modo presentación</button>
+            <button id="toggle-camera-btn">Mostrar cámara</button>
           </div>
         </header>
 
@@ -34,7 +40,7 @@
       </section>
 
       <aside class="camera-panel">
-        <h2>Cámara</h2>
+        <h2>Cámara y predicción</h2>
 
         <div class="video-box">
           <video id="webcam" autoplay playsinline muted></video>
@@ -49,11 +55,17 @@
         </div>
 
         <div class="legend">
-          <h3>Mapeo sugerido</h3>
+          <h3>Mapeo de gestos</h3>
           <p><code>two_up</code> → siguiente página</p>
           <p><code>fist</code> → página anterior</p>
-          <p><code>like</code> → zoom +</p>
-          <p><code>call</code> → pantalla completa</p>
+          <p><code>like</code> → mostrar / ocultar cámara</p>
+          <p><code>call</code> → modo presentación</p>
+        </div>
+
+        <div class="legend">
+          <h3>Atajos de teclado</h3>
+          <p><code>P</code> → activar / salir del modo presentación</p>
+          <p><code>C</code> → mostrar / ocultar cámara</p>
         </div>
       </aside>
     </main>

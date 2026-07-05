@@ -2,10 +2,17 @@
   box-sizing: border-box;
 }
 
+html,
 body {
   margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
   font-family: Arial, Helvetica, sans-serif;
-  background: #111827;
+  background: #020617;
   color: #f9fafb;
 }
 
@@ -30,27 +37,41 @@ button:hover,
 }
 
 .app {
-  min-height: 100vh;
+  width: 100vw;
+  height: 100vh;
   display: grid;
-  grid-template-columns: 1fr 420px;
+  grid-template-columns: minmax(0, 1fr) 400px;
   gap: 16px;
   padding: 16px;
+  background: #020617;
 }
 
 .viewer-panel,
 .camera-panel {
+  min-height: 0;
   background: #1f2937;
   border-radius: 18px;
   padding: 16px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+}
+
+.viewer-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.camera-panel {
+  overflow: auto;
 }
 
 .toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
+  gap: 16px;
   flex-wrap: wrap;
+  flex-shrink: 0;
 }
 
 .toolbar h1 {
@@ -70,20 +91,23 @@ button:hover,
 
 .pdf-wrapper {
   margin-top: 16px;
-  min-height: 70vh;
+  flex: 1;
+  min-height: 0;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
-  overflow: auto;
-  background: #0f172a;
+  overflow: hidden;
+  background: #000;
   border-radius: 14px;
-  padding: 16px;
+  padding: 12px;
 }
 
 #pdf-canvas {
+  display: block;
   background: white;
   border-radius: 6px;
   max-width: 100%;
+  max-height: 100%;
 }
 
 #page-info {
@@ -129,8 +153,82 @@ code {
   color: #93c5fd;
 }
 
+/* MODO PRESENTACIÓN */
+
+.app.presentation-mode {
+  grid-template-columns: 1fr;
+  gap: 0;
+  padding: 0;
+}
+
+.app.presentation-mode .viewer-panel {
+  width: 100vw;
+  height: 100vh;
+  border-radius: 0;
+  padding: 0;
+  background: #000;
+  box-shadow: none;
+}
+
+.app.presentation-mode .toolbar {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  z-index: 40;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.78);
+  backdrop-filter: blur(10px);
+  opacity: 0.18;
+  transition: opacity 0.2s ease;
+}
+
+.app.presentation-mode .toolbar:hover {
+  opacity: 1;
+}
+
+.app.presentation-mode .pdf-wrapper {
+  margin-top: 0;
+  width: 100vw;
+  height: 100vh;
+  border-radius: 0;
+  padding: 0;
+  background: #000;
+}
+
+.app.presentation-mode #pdf-canvas {
+  border-radius: 0;
+}
+
+/* Panel lateral oculto en presentación */
+
+.app.presentation-mode .camera-panel {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  width: min(390px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  z-index: 50;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  transform: translateX(calc(100% + 24px));
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+.app.presentation-mode.show-camera .camera-panel {
+  transform: translateX(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
 @media (max-width: 1000px) {
   .app {
     grid-template-columns: 1fr;
+  }
+
+  .camera-panel {
+    max-height: 45vh;
   }
 }
