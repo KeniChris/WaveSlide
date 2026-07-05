@@ -25,6 +25,7 @@ const statusEl = document.getElementById('status');
 const gestureEl = document.getElementById('gesture');
 const confidenceEl = document.getElementById('confidence');
 const lastActionEl = document.getElementById('last-action');
+const gestureControlEl = document.getElementById('gesture-control');
 
 const pdfInput = document.getElementById('pdf-input');
 const pdfCanvas = document.getElementById('pdf-canvas');
@@ -53,19 +54,37 @@ let lastPredictionAt = 0;
 let lastActionAt = 0;
 let predictionHistory = [];
 
+let gestureControlEnabled = false;
+
+// Sirve para que un gesto sostenido no ejecute la acción muchas veces.
+let actionLockedGesture = null;
+
 const cropCanvas = document.createElement('canvas');
 cropCanvas.width = INPUT_SIZE;
 cropCanvas.height = INPUT_SIZE;
 const cropCtx = cropCanvas.getContext('2d');
 
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function setStatus(message) {
   statusEl.textContent = message;
+}
+
+function updateGestureControlUI() {
+  if (gestureControlEl) {
+    gestureControlEl.textContent = gestureControlEnabled ? 'Activado' : 'Desactivado';
+  }
+
+  appEl?.classList.toggle('gesture-enabled', gestureControlEnabled);
 }
 
 async function loadPdfFromFile(file) {
   const arrayBuffer = await file.arrayBuffer();
   pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
   currentPage = 1;
+  zoomFactor = 1;
   await renderPage(currentPage);
 }
 
@@ -79,42 +98,45 @@ async function renderPage(pageNumber) {
 
   rendering = true;
 
-  const page = await pdfDoc.getPage(pageNumber);
-  const pdfWrapper = document.querySelector('.pdf-wrapper');
+  try {
+    const page = await pdfDoc.getPage(pageNumber);
+    const pdfWrapper = document.querySelector('.pdf-wrapper');
 
-  const baseViewport = page.getViewport({ scale: 1 });
+    const baseViewport = page.getViewport({ scale: 1 });
 
-  const availableWidth = Math.max(320, pdfWrapper.clientWidth - 16);
-  const availableHeight = Math.max(240, pdfWrapper.clientHeight - 16);
+    const availableWidth = Math.max(320, pdfWrapper.clientWidth - 16);
+    const availableHeight = Math.max(240, pdfWrapper.clientHeight - 16);
 
-  const fitScale = Math.min(
-    availableWidth / baseViewport.width,
-    availableHeight / baseViewport.height
-  );
+    const fitScale = Math.min(
+      availableWidth / baseViewport.width,
+      availableHeight / baseViewport.height
+    );
 
-  const finalScale = fitScale * zoomFactor;
-  const viewport = page.getViewport({ scale: finalScale });
+    const finalScale = fitScale * zoomFactor;
+    const viewport = page.getViewport({ scale: finalScale });
 
-  const outputScale = window.devicePixelRatio || 1;
+    const outputScale = window.devicePixelRatio || 1;
 
-  pdfCanvas.width = Math.floor(viewport.width * outputScale);
-  pdfCanvas.height = Math.floor(viewport.height * outputScale);
+    pdfCanvas.width = Math.floor(viewport.width * outputScale);
+    pdfCanvas.height = Math.floor(viewport.height * outputScale);
 
-  pdfCanvas.style.width = `${Math.floor(viewport.width)}px`;
-  pdfCanvas.style.height = `${Math.floor(viewport.height)}px`;
+    pdfCanvas.style.width = `${Math.floor(viewport.width)}px`;
+    pdfCanvas.style.height = `${Math.floor(viewport.height)}px`;
 
-  const transform = outputScale !== 1
-    ? [outputScale, 0, 0, outputScale, 0, 0]
-    : null;
+    const transform = outputScale !== 1
+      ? [outputScale, 0, 0, outputScale, 0, 0]
+      : null;
 
-  await page.render({
-    canvasContext: pdfCtx,
-    viewport,
-    transform
-  }).promise;
+    await page.render({
+      canvasContext: pdfCtx,
+      viewport,
+      transform
+    }).promise;
 
-  pageInfo.textContent = `Página ${currentPage} de ${pdfDoc.numPages}`;
-  rendering = false;
+    pageInfo.textContent = `Página ${currentPage} de ${pdfDoc.numPages}`;
+  } finally {
+    rendering = false;
+  }
 
   if (pendingPage !== null) {
     const nextPending = pendingPage;
@@ -124,55 +146,131 @@ async function renderPage(pageNumber) {
 }
 
 async function nextPage() {
-  if (!pdfDoc || currentPage >= pdfDoc.numPages) return;
+  if (!pdfDoc) {
+    lastActionEl.textContent = 'Carga un PDF primero';
+    return;
+  }
+
+  if (currentPage >= pdfDoc.numPages) {
+    lastActionEl.textContent = 'Ya estás en la última página';
+    return;
+  }
+
   currentPage += 1;
   await renderPage(currentPage);
 }
 
 async function prevPage() {
-  if (!pdfDoc || currentPage <= 1) return;
+  if (!pdfDoc) {
+    lastActionEl.textContent = 'Carga un PDF primero';
+    return;
+  }
+
+  if (currentPage <= 1) {
+    lastActionEl.textContent = 'Ya estás en la primera página';
+    return;
+  }
+
   currentPage -= 1;
   await renderPage(currentPage);
 }
 
 async function zoomIn() {
+  if (!pdfDoc) return;
   zoomFactor = Math.min(zoomFactor + 0.1, 2);
   await renderPage(currentPage);
 }
 
 async function zoomOut() {
+  if (!pdfDoc) return;
   zoomFactor = Math.max(zoomFactor - 0.1, 0.5);
   await renderPage(currentPage);
 }
 
-function toggleFullscreen() {
-  const element = document.documentElement;
-  if (!document.fullscreenElement) {
-    element.requestFullscreen?.();
-  } else {
-    document.exitFullscreen?.();
+async function togglePresentationMode() {
+  if (!appEl) return;
+
+  appEl.classList.toggle('presentation-mode');
+  appEl.classList.remove('show-camera');
+
+  await delay(80);
+
+  if (pdfDoc) {
+    await renderPage(currentPage);
+  }
+}
+
+async function toggleCameraPanel() {
+  if (!appEl) return;
+
+  appEl.classList.toggle('show-camera');
+
+  if (toggleCameraBtn) {
+    toggleCameraBtn.textContent = appEl.classList.contains('show-camera')
+      ? 'Ocultar cámara'
+      : 'Mostrar cámara';
+  }
+
+  await delay(80);
+
+  if (pdfDoc) {
+    await renderPage(currentPage);
   }
 }
 
 async function executeGesture(gesture) {
   const now = performance.now();
-  if (now - lastActionAt < ACTION_COOLDOWN_MS) return;
+
+  if (now - lastActionAt < ACTION_COOLDOWN_MS) {
+    return;
+  }
+
+  // Evita que el mismo gesto sostenido ejecute varias veces.
+  if (gesture === actionLockedGesture) {
+    return;
+  }
+
+  // LIKE funciona como interruptor general.
+  if (gesture === 'like') {
+    gestureControlEnabled = !gestureControlEnabled;
+    updateGestureControlUI();
+
+    lastActionEl.textContent = gestureControlEnabled
+      ? 'Control por gestos activado'
+      : 'Control por gestos desactivado';
+
+    lastActionAt = now;
+    actionLockedGesture = gesture;
+    predictionHistory = [];
+
+    return;
+  }
+
+  // Si el control está desactivado, ignora los demás gestos.
+  if (!gestureControlEnabled) {
+    lastActionEl.textContent = 'Gestos bloqueados: haz like para activar';
+    actionLockedGesture = gesture;
+    predictionHistory = [];
+
+    return;
+  }
 
   if (gesture === 'two_up') {
-  await nextPage();
-  lastActionEl.textContent = 'Siguiente página';
-} else if (gesture === 'fist') {
-  await prevPage();
-  lastActionEl.textContent = 'Página anterior';
-} else if (gesture === 'like') {
-  await toggleCameraPanel();
-  lastActionEl.textContent = 'Mostrar/Ocultar cámara';
-} else if (gesture === 'call') {
-  await togglePresentationMode();
-  lastActionEl.textContent = 'Modo presentación';
-}
+    await nextPage();
+    lastActionEl.textContent = 'Siguiente página';
+  } else if (gesture === 'fist') {
+    await prevPage();
+    lastActionEl.textContent = 'Página anterior';
+  } else if (gesture === 'call') {
+    await togglePresentationMode();
+    lastActionEl.textContent = 'Modo presentación';
+  } else {
+    return;
+  }
 
   lastActionAt = now;
+  actionLockedGesture = gesture;
+  predictionHistory = [];
 }
 
 function resizeOverlayToVideo() {
@@ -218,10 +316,11 @@ function drawDetection(landmarks, bbox, predictionText) {
   overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
 
   overlayCtx.lineWidth = 4;
-  overlayCtx.strokeStyle = '#22c55e';
+  overlayCtx.strokeStyle = gestureControlEnabled ? '#22c55e' : '#f97316';
   overlayCtx.strokeRect(bbox.x, bbox.y, bbox.width, bbox.height);
 
-  overlayCtx.fillStyle = '#22c55e';
+  overlayCtx.fillStyle = gestureControlEnabled ? '#22c55e' : '#f97316';
+
   for (const point of landmarks) {
     overlayCtx.beginPath();
     overlayCtx.arc(point.x * overlay.width, point.y * overlay.height, 4, 0, Math.PI * 2);
@@ -229,12 +328,13 @@ function drawDetection(landmarks, bbox, predictionText) {
   }
 
   overlayCtx.font = '24px Arial';
-  overlayCtx.fillStyle = '#22c55e';
+  overlayCtx.fillStyle = gestureControlEnabled ? '#22c55e' : '#f97316';
   overlayCtx.fillText(predictionText, bbox.x, Math.max(30, bbox.y - 12));
 }
 
 function cropHandToCanvas(bbox) {
   cropCtx.clearRect(0, 0, INPUT_SIZE, INPUT_SIZE);
+
   cropCtx.drawImage(
     video,
     bbox.x,
@@ -286,7 +386,9 @@ async function predictGestureFromCrop() {
   }
 
   console.log(
-    CLASS_NAMES.map((name, index) => `${name}: ${probabilities[index]?.toFixed(4)}`).join(' | ')
+    CLASS_NAMES
+      .map((name, index) => `${name}: ${probabilities[index]?.toFixed(4)}`)
+      .join(' | ')
   );
 
   return {
@@ -298,11 +400,15 @@ async function predictGestureFromCrop() {
 
 function updateStablePrediction(gesture) {
   predictionHistory.push(gesture);
+
   if (predictionHistory.length > STABLE_FRAMES) {
     predictionHistory.shift();
   }
 
-  if (predictionHistory.length < STABLE_FRAMES) return false;
+  if (predictionHistory.length < STABLE_FRAMES) {
+    return false;
+  }
+
   return predictionHistory.every((item) => item === gesture);
 }
 
@@ -319,9 +425,15 @@ async function detectLoop() {
 
   if (!result.landmarks || result.landmarks.length === 0) {
     overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
+
     gestureEl.textContent = 'sin mano';
     confidenceEl.textContent = '---';
+
     predictionHistory = [];
+
+    // Al quitar la mano, permitimos que el mismo gesto vuelva a funcionar luego.
+    actionLockedGesture = null;
+
     requestAnimationFrame(detectLoop);
     return;
   }
@@ -338,7 +450,8 @@ async function detectLoop() {
     gestureEl.textContent = gesture;
     confidenceEl.textContent = `${(confidence * 100).toFixed(1)}%`;
 
-    const predictionText = `${gesture} ${(confidence * 100).toFixed(0)}%`;
+    const controlText = gestureControlEnabled ? 'ON' : 'OFF';
+    const predictionText = `${gesture} ${(confidence * 100).toFixed(0)}% | ${controlText}`;
     drawDetection(landmarks, bbox, predictionText);
 
     const isStable = updateStablePrediction(gesture);
@@ -347,7 +460,8 @@ async function detectLoop() {
       await executeGesture(gesture);
     }
   } else {
-    drawDetection(landmarks, bbox, gestureEl.textContent);
+    const controlText = gestureControlEnabled ? 'ON' : 'OFF';
+    drawDetection(landmarks, bbox, `${gestureEl.textContent} | ${controlText}`);
   }
 
   requestAnimationFrame(detectLoop);
@@ -413,6 +527,8 @@ async function setupGestureModel() {
 
 async function init() {
   try {
+    updateGestureControlUI();
+
     setStatus('Abriendo cámara...');
     await setupCamera();
 
@@ -442,33 +558,13 @@ pdfInput.addEventListener('change', async (event) => {
   }
 });
 
-async function togglePresentationMode() {
-  appEl.classList.toggle('presentation-mode');
-  appEl.classList.remove('show-camera');
-
-  await new Promise((resolve) => setTimeout(resolve, 80));
-  await renderPage(currentPage);
-}
-
-async function toggleCameraPanel() {
-  appEl.classList.toggle('show-camera');
-
-  if (appEl.classList.contains('show-camera')) {
-    toggleCameraBtn.textContent = 'Ocultar cámara';
-  } else {
-    toggleCameraBtn.textContent = 'Mostrar cámara';
-  }
-
-  await new Promise((resolve) => setTimeout(resolve, 80));
-  await renderPage(currentPage);
-}
-
 prevBtn.addEventListener('click', prevPage);
 nextBtn.addEventListener('click', nextPage);
 zoomInBtn.addEventListener('click', zoomIn);
 zoomOutBtn.addEventListener('click', zoomOut);
-presentationBtn.addEventListener('click', togglePresentationMode);
-toggleCameraBtn.addEventListener('click', toggleCameraPanel);
+
+presentationBtn?.addEventListener('click', togglePresentationMode);
+toggleCameraBtn?.addEventListener('click', toggleCameraPanel);
 
 window.addEventListener('resize', () => {
   if (pdfDoc) {
@@ -487,4 +583,5 @@ document.addEventListener('keydown', async (event) => {
     await toggleCameraPanel();
   }
 });
+
 init();

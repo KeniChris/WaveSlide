@@ -1,75 +1,78 @@
 <!doctype html>
 <html lang="es">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>WaveSlide - Control PDF con gestos</title>
-  </head>
 
-  <body>
-    <main class="app">
-      <section class="viewer-panel">
-        <header class="toolbar">
-          <div>
-            <h1>WaveSlide</h1>
-            <p>Control de PDF con cámara + MediaPipe + MobileNetV2</p>
-          </div>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WaveSlide - Control PDF con gestos</title>
+</head>
 
-          <div class="controls">
-            <label class="file-button">
-              Cargar PDF
-              <input id="pdf-input" type="file" accept="application/pdf" />
-            </label>
-
-            <button id="prev-btn">Atrás</button>
-            <button id="next-btn">Siguiente</button>
-            <button id="zoom-out-btn">Zoom -</button>
-            <button id="zoom-in-btn">Zoom +</button>
-
-            <!-- Nuevos botones -->
-            <button id="presentation-btn">Modo presentación</button>
-            <button id="toggle-camera-btn">Mostrar cámara</button>
-          </div>
-        </header>
-
-        <div class="pdf-wrapper">
-          <canvas id="pdf-canvas"></canvas>
+<body>
+  <main class="app">
+    <section class="viewer-panel">
+      <header class="toolbar">
+        <div>
+          <h1>WaveSlide</h1>
+          <p>Control de PDF con cámara + MediaPipe + MobileNetV2</p>
         </div>
 
-        <p id="page-info">Carga un PDF para empezar.</p>
-      </section>
+        <div class="controls">
+          <label class="file-button">
+            Cargar PDF
+            <input id="pdf-input" type="file" accept="application/pdf" />
+          </label>
 
-      <aside class="camera-panel">
-        <h2>Cámara y predicción</h2>
+          <button id="prev-btn">Atrás</button>
+          <button id="next-btn">Siguiente</button>
+          <button id="zoom-out-btn">Zoom -</button>
+          <button id="zoom-in-btn">Zoom +</button>
 
-        <div class="video-box">
-          <video id="webcam" autoplay playsinline muted></video>
-          <canvas id="overlay"></canvas>
+          <!-- Nuevos botones -->
+          <button id="presentation-btn">Modo presentación</button>
+          <button id="toggle-camera-btn">Mostrar cámara</button>
         </div>
+      </header>
 
-        <div class="status-card">
-          <p><strong>Estado:</strong> <span id="status">Inicializando...</span></p>
-          <p><strong>Gesto:</strong> <span id="gesture">---</span></p>
-          <p><strong>Confianza:</strong> <span id="confidence">---</span></p>
-          <p><strong>Acción:</strong> <span id="last-action">---</span></p>
-        </div>
+      <div class="pdf-wrapper">
+        <canvas id="pdf-canvas"></canvas>
+      </div>
 
-        <div class="legend">
-          <h3>Mapeo de gestos</h3>
-          <p><code>two_up</code> → siguiente página</p>
-          <p><code>fist</code> → página anterior</p>
-          <p><code>like</code> → mostrar / ocultar cámara</p>
-          <p><code>call</code> → modo presentación</p>
-        </div>
+      <p id="page-info">Carga un PDF para empezar.</p>
+    </section>
 
-        <div class="legend">
-          <h3>Atajos de teclado</h3>
-          <p><code>P</code> → activar / salir del modo presentación</p>
-          <p><code>C</code> → mostrar / ocultar cámara</p>
-        </div>
-      </aside>
-    </main>
+    <aside class="camera-panel">
+      <h2>Cámara y predicción</h2>
 
-    <script type="module" src="/src/app.js"></script>
-  </body>
+      <div class="video-box">
+        <video id="webcam" autoplay playsinline muted></video>
+        <canvas id="overlay"></canvas>
+      </div>
+
+      <div class="status-card">
+        <p><strong>Estado:</strong> <span id="status">Inicializando...</span></p>
+        <p><strong>Control por gestos:</strong> <span id="gesture-control">Desactivado</span></p>
+        <p><strong>Gesto:</strong> <span id="gesture">---</span></p>
+        <p><strong>Confianza:</strong> <span id="confidence">---</span></p>
+        <p><strong>Acción:</strong> <span id="last-action">---</span></p>
+      </div>
+
+      <div class="legend">
+        <h3>Mapeo de gestos</h3>
+        <p><code>like</code> → activar / desactivar control por gestos</p>
+        <p><code>two_up</code> → siguiente página</p>
+        <p><code>fist</code> → página anterior</p>
+        <p><code>call</code> → modo presentación</p>
+      </div>
+
+      <div class="legend">
+        <h3>Atajos de teclado</h3>
+        <p><code>P</code> → activar / salir del modo presentación</p>
+        <p><code>C</code> → mostrar / ocultar cámara</p>
+      </div>
+    </aside>
+  </main>
+
+  <script type="module" src="/src/app.js"></script>
+</body>
+
 </html>
